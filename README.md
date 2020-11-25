@@ -1,0 +1,1 @@
+# msanalyticsp1adfartifacts
