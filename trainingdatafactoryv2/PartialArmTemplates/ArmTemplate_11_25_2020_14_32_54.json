@@ -6,56 +6,12 @@
 			"type": "string",
 			"metadata": "Data Factory name",
 			"defaultValue": "trainingdatafactoryv2"
-		},
-		"BlobMetadataSQLConnection_connectionString": {
-			"type": "secureString",
-			"metadata": "Secure string for 'connectionString' of 'BlobMetadataSQLConnection'"
-		},
-		"TrainingKeyVaultConnection_properties_typeProperties_baseUrl": {
-			"type": "string",
-			"defaultValue": "https://trainingkeyvaultv2.vault.azure.net/"
 		}
 	},
 	"variables": {
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
-		{
-			"name": "[concat(parameters('factoryName'), '/TrainingKeyVaultConnection')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"type": "AzureKeyVault",
-				"typeProperties": {
-					"baseUrl": "[parameters('TrainingKeyVaultConnection_properties_typeProperties_baseUrl')]"
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/BlobMetadataSQLConnection')]",
-			"type": "Microsoft.DataFactory/factories/linkedServices",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"type": "AzureSqlDatabase",
-				"typeProperties": {
-					"connectionString": "[parameters('BlobMetadataSQLConnection_connectionString')]",
-					"password": {
-						"type": "AzureKeyVaultSecret",
-						"store": {
-							"referenceName": "TrainingKeyVaultConnection",
-							"type": "LinkedServiceReference"
-						},
-						"secretName": "sqlpassword"
-					}
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/TrainingKeyVaultConnection')]"
-			]
-		},
 		{
 			"name": "[concat(parameters('factoryName'), '/BlobMetadataDataset')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
@@ -136,9 +92,7 @@
 					"table": "BlobMetadata"
 				}
 			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/BlobMetadataSQLConnection')]"
-			]
+			"dependsOn": []
 		},
 		{
 			"name": "[concat(parameters('factoryName'), '/OrderBlobsProcessor')]",
@@ -168,8 +122,7 @@
 							},
 							"dataset": {
 								"referenceName": "BlobMetadataDataset",
-								"type": "DatasetReference",
-								"parameters": {}
+								"type": "DatasetReference"
 							},
 							"firstRowOnly": false
 						}

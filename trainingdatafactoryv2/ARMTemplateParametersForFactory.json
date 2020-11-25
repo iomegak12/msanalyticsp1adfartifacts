@@ -5,6 +5,9 @@
 		"factoryName": {
 			"value": "trainingdatafactoryv2"
 		},
+		"BlobMetadataSQLConnection_connectionString": {
+			"value": ""
+		},
 		"TrainingKeyVaultConnection_properties_typeProperties_baseUrl": {
 			"value": "https://trainingkeyvaultv2.vault.azure.net/"
 		}
