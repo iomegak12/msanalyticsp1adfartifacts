@@ -14,6 +14,9 @@
 		"OrganizedDLSConnection_accountKey": {
 			"value": ""
 		},
+		"OrdersDWConnection_connectionString": {
+			"value": ""
+		},
 		"DLSTargetProviderFunctionConnection_properties_typeProperties_functionAppUrl": {
 			"value": "https://dlstargetprovider20201125160234.azurewebsites.net"
 		},
