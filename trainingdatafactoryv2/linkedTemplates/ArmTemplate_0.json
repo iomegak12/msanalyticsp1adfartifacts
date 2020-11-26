@@ -611,6 +611,87 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/ProcessOrdersDataFlow')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "This data flow processes internet order blobs from the storage account to DW.",
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "OrdersBlobStorageDataset",
+								"type": "DatasetReference"
+							},
+							"name": "OrdersInputSource"
+						},
+						{
+							"dataset": {
+								"referenceName": "CustomersDLSDataset",
+								"type": "DatasetReference"
+							},
+							"name": "Customers"
+						},
+						{
+							"dataset": {
+								"referenceName": "ProductsDLSDataset",
+								"type": "DatasetReference"
+							},
+							"name": "Products"
+						},
+						{
+							"dataset": {
+								"referenceName": "CapitalCitiesDataset",
+								"type": "DatasetReference"
+							},
+							"name": "CapitalCities"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "ProcessedOrdersDWDataset",
+								"type": "DatasetReference"
+							},
+							"name": "OutputToDW"
+						}
+					],
+					"transformations": [
+						{
+							"name": "OrderAndCustomers"
+						},
+						{
+							"name": "OrdersCustomersProductsOutput"
+						},
+						{
+							"name": "OrderJoinedOutput"
+						},
+						{
+							"name": "SelectedColums"
+						},
+						{
+							"name": "PrepareColumns"
+						},
+						{
+							"name": "CleansedOrders"
+						},
+						{
+							"name": "ProcessedOrders"
+						}
+					],
+					"script": "source(output(\n\t\torderid as integer,\n\t\torderdate as string,\n\t\tcustomer as integer,\n\t\tproduct as integer,\n\t\tunits as integer,\n\t\tbillingaddress as string,\n\t\tremarks as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> OrdersInputSource\nsource(output(\n\t\tcustomerid as integer,\n\t\tfullname as string,\n\t\taddress as string,\n\t\tcredit as integer,\n\t\tstatus as boolean\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> Customers\nsource(output(\n\t\titemdiscount as short,\n\t\tproductid as short,\n\t\ttitle as string,\n\t\tunitprice as short,\n\t\tunitsinstock as short\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false,\n\tdocumentForm: 'arrayOfDocuments') ~> Products\nsource(output(\n\t\tCityId as integer,\n\t\tCityName as string,\n\t\tRegion as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> CapitalCities\nOrdersInputSource, Customers join(customer == customerid,\n\tjoinType:'inner',\n\tbroadcast: 'right')~> OrderAndCustomers\nOrderAndCustomers, Products join(product == productid,\n\tjoinType:'inner',\n\tbroadcast: 'right')~> OrdersCustomersProductsOutput\nOrdersCustomersProductsOutput, CapitalCities join(address == CityName,\n\tjoinType:'inner',\n\tbroadcast: 'right')~> OrderJoinedOutput\nOrderJoinedOutput select(mapColumn(\n\t\torderid,\n\t\torderdate,\n\t\tunits,\n\t\tbillingaddress,\n\t\tfullname,\n\t\tcustomerlocation = address,\n\t\tcredit,\n\t\tstatus,\n\t\titemdiscount,\n\t\ttitle,\n\t\tunitprice,\n\t\tunitsinstock,\n\t\tregion = Region\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SelectedColums\nSelectedColums derive(orderamount = units * unitprice,\n\t\tdiscountamount = toInteger(units * unitprice * itemdiscount * 0.01),\n\t\tcustomertype = iif(credit < 1000, \"Silver\", iif(credit >= 10000 && credit < 1000, \"Gold\", \"Platinum\")),\n\t\tactivestatus = iif(status, \"Active\", \"Inactive\")) ~> PrepareColumns\nPrepareColumns select(mapColumn(\n\t\torderid,\n\t\torderdate,\n\t\tunits,\n\t\tbillingaddress,\n\t\tfullname,\n\t\tcustomerlocation,\n\t\ttitle,\n\t\tunitprice,\n\t\tunitsinstock,\n\t\tregion,\n\t\torderamount,\n\t\tdiscountamount,\n\t\tcustomertype,\n\t\tactivestatus,\n\t\tcredit\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> CleansedOrders\nCleansedOrders filter(credit >= orderamount && unitsinstock >= units) ~> ProcessedOrders\nProcessedOrders sink(input(\n\t\tOrderId as integer,\n\t\tOrderDate as string,\n\t\tCustomerFullName as string,\n\t\tCustomerType as string,\n\t\tCustomerLocation as string,\n\t\tProductTitle as string,\n\t\tUnits as integer,\n\t\tUnitPrice as integer,\n\t\tAmount as integer,\n\t\tDiscount as integer,\n\t\tRegion as string,\n\t\tBillingAddress as string,\n\t\tActiveStatus as string,\n\t\tUnitsInStock as integer,\n\t\tCredit as integer\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tstaged: true,\n\tmapColumn(\n\t\tOrderId = orderid,\n\t\tOrderDate = orderdate,\n\t\tCustomerFullName = fullname,\n\t\tCustomerType = customertype,\n\t\tCustomerLocation = customerlocation,\n\t\tProductTitle = title,\n\t\tUnits = units,\n\t\tUnitPrice = unitprice,\n\t\tAmount = orderamount,\n\t\tDiscount = discountamount,\n\t\tRegion = region,\n\t\tBillingAddress = billingaddress,\n\t\tActiveStatus = activestatus,\n\t\tUnitsInStock = unitsinstock,\n\t\tCredit = credit\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> OutputToDW"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/OrdersBlobStorageDataset')]",
+				"[concat(variables('factoryId'), '/datasets/CustomersDLSDataset')]",
+				"[concat(variables('factoryId'), '/datasets/ProductsDLSDataset')]",
+				"[concat(variables('factoryId'), '/datasets/CapitalCitiesDataset')]",
+				"[concat(variables('factoryId'), '/datasets/ProcessedOrdersDWDataset')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/OrderBlobsProcessor')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -907,6 +988,65 @@
 										"referenceName": "BlobMetadataSQLConnection",
 										"type": "LinkedServiceReference"
 									}
+								},
+								{
+									"name": "ProcessOrdersDataFlow",
+									"type": "ExecuteDataFlow",
+									"dependsOn": [
+										{
+											"activity": "Prepare DLS Target Info",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataflow": {
+											"referenceName": "ProcessOrdersDataFlow",
+											"type": "DataFlowReference",
+											"parameters": {},
+											"datasetParameters": {
+												"OrdersInputSource": {
+													"containerName": {
+														"value": "@activity('Prepare DLS Target Info').output.containerName",
+														"type": "Expression"
+													},
+													"folder": {
+														"value": "@activity('Prepare DLS Target Info').output.path",
+														"type": "Expression"
+													},
+													"fileName": {
+														"value": "@activity('Prepare DLS Target Info').output.blobName",
+														"type": "Expression"
+													}
+												},
+												"Customers": {},
+												"Products": {},
+												"CapitalCities": {},
+												"OutputToDW": {}
+											}
+										},
+										"staging": {
+											"linkedService": {
+												"referenceName": "OrdersBlobStorageConnection",
+												"type": "LinkedServiceReference"
+											},
+											"folderPath": "staging-data//"
+										},
+										"compute": {
+											"coreCount": 8,
+											"computeType": "General"
+										},
+										"traceLevel": "Fine"
+									}
 								}
 							]
 						}
@@ -920,88 +1060,9 @@
 				"[concat(variables('factoryId'), '/linkedServices/DLSTargetProviderFunctionConnection')]",
 				"[concat(variables('factoryId'), '/datasets/OrdersBlobStorageDataset')]",
 				"[concat(variables('factoryId'), '/datasets/OrganizedOrdersDLSDataset')]",
-				"[concat(variables('factoryId'), '/linkedServices/BlobMetadataSQLConnection')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/ProcessOrdersDataFlow')]",
-			"type": "Microsoft.DataFactory/factories/dataflows",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"description": "This data flow processes internet order blobs from the storage account to DW.",
-				"type": "MappingDataFlow",
-				"typeProperties": {
-					"sources": [
-						{
-							"dataset": {
-								"referenceName": "OrdersBlobStorageDataset",
-								"type": "DatasetReference"
-							},
-							"name": "OrdersInputSource"
-						},
-						{
-							"dataset": {
-								"referenceName": "CustomersDLSDataset",
-								"type": "DatasetReference"
-							},
-							"name": "Customers"
-						},
-						{
-							"dataset": {
-								"referenceName": "ProductsDLSDataset",
-								"type": "DatasetReference"
-							},
-							"name": "Products"
-						},
-						{
-							"dataset": {
-								"referenceName": "CapitalCitiesDataset",
-								"type": "DatasetReference"
-							},
-							"name": "CapitalCities"
-						}
-					],
-					"sinks": [
-						{
-							"dataset": {
-								"referenceName": "ProcessedOrdersDWDataset",
-								"type": "DatasetReference"
-							},
-							"name": "OutputToDW"
-						}
-					],
-					"transformations": [
-						{
-							"name": "OrderAndCustomers"
-						},
-						{
-							"name": "OrdersCustomersProductsOutput"
-						},
-						{
-							"name": "OrderJoinedOutput"
-						},
-						{
-							"name": "SelectedColums"
-						},
-						{
-							"name": "PrepareColumns"
-						},
-						{
-							"name": "CleansedOrders"
-						},
-						{
-							"name": "ProcessedOrders"
-						}
-					],
-					"script": "source(output(\n\t\torderid as integer,\n\t\torderdate as string,\n\t\tcustomer as integer,\n\t\tproduct as integer,\n\t\tunits as integer,\n\t\tbillingaddress as string,\n\t\tremarks as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> OrdersInputSource\nsource(output(\n\t\tcustomerid as integer,\n\t\tfullname as string,\n\t\taddress as string,\n\t\tcredit as integer,\n\t\tstatus as boolean\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> Customers\nsource(output(\n\t\titemdiscount as short,\n\t\tproductid as short,\n\t\ttitle as string,\n\t\tunitprice as short,\n\t\tunitsinstock as short\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false,\n\tdocumentForm: 'arrayOfDocuments') ~> Products\nsource(output(\n\t\tCityId as integer,\n\t\tCityName as string,\n\t\tRegion as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> CapitalCities\nOrdersInputSource, Customers join(customer == customerid,\n\tjoinType:'inner',\n\tbroadcast: 'right')~> OrderAndCustomers\nOrderAndCustomers, Products join(product == productid,\n\tjoinType:'inner',\n\tbroadcast: 'right')~> OrdersCustomersProductsOutput\nOrdersCustomersProductsOutput, CapitalCities join(address == CityName,\n\tjoinType:'inner',\n\tbroadcast: 'right')~> OrderJoinedOutput\nOrderJoinedOutput select(mapColumn(\n\t\torderid,\n\t\torderdate,\n\t\tunits,\n\t\tbillingaddress,\n\t\tfullname,\n\t\tcustomerlocation = address,\n\t\tcredit,\n\t\tstatus,\n\t\titemdiscount,\n\t\ttitle,\n\t\tunitprice,\n\t\tunitsinstock,\n\t\tregion = Region\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SelectedColums\nSelectedColums derive(orderamount = units * unitprice,\n\t\tdiscountamount = toInteger(units * unitprice * itemdiscount * 0.01),\n\t\tcustomertype = iif(credit < 1000, \"Silver\", iif(credit >= 10000 && credit < 1000, \"Gold\", \"Platinum\")),\n\t\tactivestatus = iif(status, \"Active\", \"Inactive\")) ~> PrepareColumns\nPrepareColumns select(mapColumn(\n\t\torderid,\n\t\torderdate,\n\t\tunits,\n\t\tbillingaddress,\n\t\tfullname,\n\t\tcustomerlocation,\n\t\ttitle,\n\t\tunitprice,\n\t\tunitsinstock,\n\t\tregion,\n\t\torderamount,\n\t\tdiscountamount,\n\t\tcustomertype,\n\t\tactivestatus,\n\t\tcredit\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> CleansedOrders\nCleansedOrders filter(credit >= orderamount && unitsinstock >= units) ~> ProcessedOrders\nProcessedOrders sink(input(\n\t\tOrderId as integer,\n\t\tOrderDate as string,\n\t\tCustomerFullName as string,\n\t\tCustomerType as string,\n\t\tCustomerLocation as string,\n\t\tProductTitle as string,\n\t\tUnits as integer,\n\t\tUnitPrice as integer,\n\t\tAmount as integer,\n\t\tDiscount as integer,\n\t\tRegion as string,\n\t\tBillingAddress as string,\n\t\tActiveStatus as string,\n\t\tUnitsInStock as integer,\n\t\tCredit as integer\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tstaged: true,\n\tmapColumn(\n\t\tOrderId = orderid,\n\t\tOrderDate = orderdate,\n\t\tCustomerFullName = fullname,\n\t\tCustomerType = customertype,\n\t\tCustomerLocation = customerlocation,\n\t\tProductTitle = title,\n\t\tUnits = units,\n\t\tUnitPrice = unitprice,\n\t\tAmount = orderamount,\n\t\tDiscount = discountamount,\n\t\tRegion = region,\n\t\tBillingAddress = billingaddress,\n\t\tActiveStatus = activestatus,\n\t\tUnitsInStock = unitsinstock,\n\t\tCredit = credit\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> OutputToDW"
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/OrdersBlobStorageDataset')]",
-				"[concat(variables('factoryId'), '/datasets/CustomersDLSDataset')]",
-				"[concat(variables('factoryId'), '/datasets/ProductsDLSDataset')]",
-				"[concat(variables('factoryId'), '/datasets/CapitalCitiesDataset')]",
-				"[concat(variables('factoryId'), '/datasets/ProcessedOrdersDWDataset')]"
+				"[concat(variables('factoryId'), '/linkedServices/BlobMetadataSQLConnection')]",
+				"[concat(variables('factoryId'), '/dataflows/ProcessOrdersDataFlow')]",
+				"[concat(variables('factoryId'), '/linkedServices/OrdersBlobStorageConnection')]"
 			]
 		}
 	]
