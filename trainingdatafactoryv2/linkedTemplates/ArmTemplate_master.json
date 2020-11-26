@@ -11,17 +11,13 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'BlobMetadataSQLConnection'"
 		},
-		"OrganizedDLSConnection_accountKey": {
-			"type": "secureString",
-			"metadata": "Secure string for 'accountKey' of 'OrganizedDLSConnection'"
-		},
 		"OrdersBlobStorageConnection_connectionString": {
 			"type": "secureString",
 			"metadata": "Secure string for 'connectionString' of 'OrdersBlobStorageConnection'"
 		},
-		"TrainingKeyVaultConnection_properties_typeProperties_baseUrl": {
-			"type": "string",
-			"defaultValue": "https://trainingkeyvaultv2.vault.azure.net/"
+		"OrganizedDLSConnection_accountKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accountKey' of 'OrganizedDLSConnection'"
 		},
 		"DLSTargetProviderFunctionConnection_properties_typeProperties_functionAppUrl": {
 			"type": "string",
@@ -30,6 +26,10 @@
 		"OrganizedDLSConnection_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://trainingdlsv2.dfs.core.windows.net"
+		},
+		"TrainingKeyVaultConnection_properties_typeProperties_baseUrl": {
+			"type": "string",
+			"defaultValue": "https://trainingkeyvaultv2.vault.azure.net/"
 		},
 		"containerUri": {
 			"type": "string",
@@ -58,20 +58,20 @@
 					"factoryName": {
 						"value": "[parameters('factoryName')]"
 					},
-					"OrganizedDLSConnection_accountKey": {
-						"value": "[parameters('OrganizedDLSConnection_accountKey')]"
-					},
 					"OrdersBlobStorageConnection_connectionString": {
 						"value": "[parameters('OrdersBlobStorageConnection_connectionString')]"
+					},
+					"OrganizedDLSConnection_accountKey": {
+						"value": "[parameters('OrganizedDLSConnection_accountKey')]"
 					},
 					"BlobMetadataSQLConnection_connectionString": {
 						"value": "[parameters('BlobMetadataSQLConnection_connectionString')]"
 					},
-					"TrainingKeyVaultConnection_properties_typeProperties_baseUrl": {
-						"value": "[parameters('TrainingKeyVaultConnection_properties_typeProperties_baseUrl')]"
-					},
 					"OrganizedDLSConnection_properties_typeProperties_url": {
 						"value": "[parameters('OrganizedDLSConnection_properties_typeProperties_url')]"
+					},
+					"TrainingKeyVaultConnection_properties_typeProperties_baseUrl": {
+						"value": "[parameters('TrainingKeyVaultConnection_properties_typeProperties_baseUrl')]"
 					},
 					"DLSTargetProviderFunctionConnection_properties_typeProperties_functionAppUrl": {
 						"value": "[parameters('DLSTargetProviderFunctionConnection_properties_typeProperties_functionAppUrl')]"
